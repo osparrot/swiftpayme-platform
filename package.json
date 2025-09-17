@@ -1,0 +1,139 @@
+{
+  "name": "swiftpayme",
+  "version": "1.0.0",
+  "description": "SwiftPayMe - Production-ready payment system for physical assets, tokenization, currency conversion, and Bitcoin transactions",
+  "main": "index.js",
+  "scripts": {
+    "start": "docker-compose up -d",
+    "stop": "docker-compose down",
+    "restart": "docker-compose restart",
+    "logs": "docker-compose logs -f",
+    "build": "docker-compose build",
+    "dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    "test": "./scripts/testing/run-all-tests.sh",
+    "test:unit": "jest --config tests/jest.config.js --selectProjects unit",
+    "test:integration": "jest --config tests/jest.config.js --selectProjects integration",
+    "test:e2e": "jest --config tests/jest.config.js --selectProjects e2e",
+    "test:security": "ts-node scripts/testing/security-test.ts",
+    "test:load": "ts-node tests/performance/load-test.ts",
+    "test:coverage": "jest --config tests/jest.config.js --coverage",
+    "lint": "eslint . --ext .ts,.js",
+    "lint:fix": "eslint . --ext .ts,.js --fix",
+    "format": "prettier --write \"**/*.{ts,js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md}\"",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf node_modules coverage test-reports && docker system prune -f",
+    "setup": "npm install && docker-compose build",
+    "health": "curl -f http://localhost:3000/health || exit 1",
+    "deploy:staging": "echo 'Deploying to staging...' && docker-compose -f docker-compose.staging.yml up -d",
+    "deploy:production": "echo 'Deploying to production...' && docker-compose -f docker-compose.prod.yml up -d",
+    "backup": "docker-compose exec mongodb mongodump --out /backup/$(date +%Y%m%d_%H%M%S)",
+    "restore": "docker-compose exec mongodb mongorestore /backup/$BACKUP_NAME",
+    "migrate": "echo 'Running database migrations...'",
+    "seed": "echo 'Seeding database with test data...'",
+    "docs": "typedoc --out docs src",
+    "security:scan": "npm audit && docker run --rm -v $(pwd):/app clair-scanner",
+    "performance:monitor": "echo 'Starting performance monitoring...'",
+    "logs:user": "docker-compose logs -f user-service",
+    "logs:asset": "docker-compose logs -f asset-service",
+    "logs:currency": "docker-compose logs -f currency-conversion-service",
+    "logs:crypto": "docker-compose logs -f crypto-service",
+    "logs:payment": "docker-compose logs -f payment-service",
+    "logs:admin": "docker-compose logs -f admin-service",
+    "logs:notification": "docker-compose logs -f notification-service",
+    "logs:gateway": "docker-compose logs -f api-gateway"
+  },
+  "keywords": [
+    "payment-system",
+    "microservices",
+    "bitcoin",
+    "cryptocurrency",
+    "physical-assets",
+    "gold",
+    "silver",
+    "diamonds",
+    "tokenization",
+    "currency-conversion",
+    "fintech",
+    "blockchain",
+    "nodejs",
+    "typescript",
+    "docker",
+    "mongodb",
+    "redis"
+  ],
+  "author": "SwiftPayMe Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/swiftpayment.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/swiftpayment/issues"
+  },
+  "homepage": "https://github.com/username/swiftpayment#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.5.0",
+    "mongodb-memory-server": "^8.12.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typedoc": "^0.25.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "ioredis": "^5.3.0",
+    "ioredis-mock": "^8.8.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"],
+    "testMatch": ["**/*.test.ts"],
+    "collectCoverageFrom": [
+      "services/**/*.ts",
+      "shared/**/*.ts",
+      "api-gateway/**/*.ts",
+      "!**/*.d.ts",
+      "!**/node_modules/**"
+    ]
+  },
+  "eslintConfig": {
+    "parser": "@typescript-eslint/parser",
+    "extends": [
+      "eslint:recommended",
+      "@typescript-eslint/recommended",
+      "prettier"
+    ],
+    "plugins": ["@typescript-eslint", "prettier"],
+    "rules": {
+      "prettier/prettier": "error",
+      "@typescript-eslint/no-unused-vars": "error",
+      "@typescript-eslint/no-explicit-any": "warn"
+    },
+    "env": {
+      "node": true,
+      "jest": true
+    }
+  },
+  "prettier": {
+    "semi": true,
+    "trailingComma": "es5",
+    "singleQuote": true,
+    "printWidth": 100,
+    "tabWidth": 2
+  }
+}
+
