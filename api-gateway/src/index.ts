@@ -266,38 +266,38 @@ class SwiftPayApiGateway {
       {
         name: 'asset-service',
         path: '/api/assets',
-        target: process.env.ASSET_SERVICE_URL || 'http://asset-service:3005',
+        target: process.env.ASSET_SERVICE_URL || 'http://asset-service:3003',
         auth: true
       },
       {
         name: 'currency-service',
         path: '/api/currency',
-        target: process.env.CURRENCY_SERVICE_URL || 'http://currency-conversion-service:3006',
+        target: process.env.CURRENCY_SERVICE_URL || 'http://currency-conversion-service:3004',
         auth: false // Public pricing data
       },
       {
         name: 'crypto-service',
         path: '/api/crypto',
-        target: process.env.CRYPTO_SERVICE_URL || 'http://crypto-service:3007',
+        target: process.env.CRYPTO_SERVICE_URL || 'http://crypto-service:3005',
         auth: true
       },
       {
         name: 'payment-service',
         path: '/api/payments',
-        target: process.env.PAYMENT_SERVICE_URL || 'http://payment-service:3004',
+        target: process.env.PAYMENT_SERVICE_URL || 'http://payment-service:3006',
         auth: true
       },
       {
         name: 'admin-service',
         path: '/api/admin',
-        target: process.env.ADMIN_SERVICE_URL || 'http://admin-service:3008',
+        target: process.env.ADMIN_SERVICE_URL || 'http://admin-service:3007',
         auth: true,
         roles: ['admin', 'super_admin']
       },
       {
         name: 'notification-service',
         path: '/api/notifications',
-        target: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3009',
+        target: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3008',
         auth: true
       }
     ];

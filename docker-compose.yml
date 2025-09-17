@@ -1,41 +1,38 @@
 version: '3.8'
 
 services:
-  # Frontend Services
-  admin-ui:
+  # API Gateway - Unified entry point
+  api-gateway:
     build:
-      context: ./services/admin-ui
-      dockerfile: Dockerfile
-    ports:
-      - "3011:3000"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8080/api/admin
-      - VITE_APP_NAME=SwiftPayMe Admin
-      - VITE_APP_VERSION=1.0.0
-    depends_on:
-      - api-gateway
-    networks:
-      - swiftpay-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  web-ui:
-    build:
-      context: ./services/web-ui
+      context: ./api-gateway
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - VITE_API_BASE_URL=http://localhost:8080/api
-      - VITE_APP_NAME=SwiftPayMe
-      - VITE_APP_VERSION=1.0.0
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - CORS_ORIGINS=*
+      # Service URLs
+      - USER_SERVICE_URL=http://user-service:3002
+      - ASSET_SERVICE_URL=http://asset-service:3003
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - CRYPTO_SERVICE_URL=http://crypto-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - ADMIN_SERVICE_URL=http://admin-service:3007
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
     depends_on:
-      - api-gateway
+      - redis
+      - user-service
+      - asset-service
+      - currency-conversion-service
+      - crypto-service
+      - payment-service
+      - admin-service
+      - notification-service
     networks:
       - swiftpay-network
     restart: unless-stopped
@@ -46,95 +43,7 @@ services:
       retries: 3
       start_period: 40s
 
-  # API Gateway
-  api-gateway:
-    build:
-      context: ./services/api-gateway
-      dockerfile: Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - NODE_ENV=production
-      - PORT=8080
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - RATE_LIMIT_WINDOW_MS=900000
-      - RATE_LIMIT_MAX_REQUESTS=100
-      - CORS_ORIGINS=http://localhost:3000,http://localhost:3011
-      # Service URLs
-      - AUTH_SERVICE_URL=http://authentication-service:3001
-      - USER_SERVICE_URL=http://user-service:3002
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - TRANSACTION_SERVICE_URL=http://transaction-service:3004
-      - ASSET_SERVICE_URL=http://asset-service:3005
-      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3006
-      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3007
-      - BITCOIN_SERVICE_URL=http://bitcoin-service:3008
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - LEDGER_SERVICE_URL=http://ledger-service:3012
-      - ADMIN_SERVICE_URL=http://admin-service:3013
-    depends_on:
-      - redis
-      - authentication-service
-      - user-service
-      - account-service
-      - transaction-service
-      - asset-service
-      - tokenization-service
-      - currency-conversion-service
-      - bitcoin-service
-      - notification-service
-      - analytics-service
-      - compliance-service
-      - ledger-service
-      - admin-service
-    networks:
-      - swiftpay-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Core Services
-  authentication-service:
-    build:
-      context: ./services/authentication-service
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=production
-      - PORT=3001
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_auth?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-this-in-production}
-      - JWT_EXPIRES_IN=15m
-      - JWT_REFRESH_EXPIRES_IN=7d
-      - BCRYPT_ROUNDS=12
-      - MAX_LOGIN_ATTEMPTS=5
-      - LOCK_TIME=30
-      - USER_SERVICE_URL=http://user-service:3002
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - auth-service-logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
+  # User Service - User management, authentication, KYC
   user-service:
     build:
       context: ./services/user-service
@@ -147,10 +56,16 @@ services:
       - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_users?authSource=admin
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-key-change-this-in-production}
+      - JWT_EXPIRES_IN=15m
+      - JWT_REFRESH_EXPIRES_IN=7d
+      - BCRYPT_ROUNDS=12
+      - MAX_LOGIN_ATTEMPTS=5
+      - LOCK_TIME=30
       - FILE_UPLOAD_MAX_SIZE=10485760
       - ALLOWED_FILE_TYPES=image/jpeg,image/png,application/pdf
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
     depends_on:
       - mongodb
       - redis
@@ -167,93 +82,28 @@ services:
       retries: 3
       start_period: 40s
 
-  account-service:
+  # Asset Service - Physical asset deposits, verification, valuation
+  asset-service:
     build:
-      context: ./services/account-service
+      context: ./services/asset-service
       dockerfile: Dockerfile
     ports:
       - "3003:3003"
     environment:
       - NODE_ENV=production
       - PORT=3003
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_accounts?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - USER_SERVICE_URL=http://user-service:3002
-      - LEDGER_SERVICE_URL=http://ledger-service:3012
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - account-service-logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  transaction-service:
-    build:
-      context: ./services/transaction-service
-      dockerfile: Dockerfile
-    ports:
-      - "3004:3004"
-    environment:
-      - NODE_ENV=production
-      - PORT=3004
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_transactions?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - LEDGER_SERVICE_URL=http://ledger-service:3012
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3007
-      - BITCOIN_SERVICE_URL=http://bitcoin-service:3008
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - transaction-service-logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  asset-service:
-    build:
-      context: ./services/asset-service
-      dockerfile: Dockerfile
-    ports:
-      - "3005:3005"
-    environment:
-      - NODE_ENV=production
-      - PORT=3005
       - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_assets?authSource=admin
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3007
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3006
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - USER_SERVICE_URL=http://user-service:3002
       # Asset pricing APIs
       - GOLD_API_KEY=${GOLD_API_KEY:-your-gold-api-key}
       - SILVER_API_KEY=${SILVER_API_KEY:-your-silver-api-key}
       - DIAMOND_API_KEY=${DIAMOND_API_KEY:-your-diamond-api-key}
+      - METALS_API_KEY=${METALS_API_KEY:-your-metals-api-key}
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
     depends_on:
       - mongodb
       - redis
@@ -264,60 +114,22 @@ services:
       - asset-service-images:/app/uploads/images
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3003/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  tokenization-service:
-    build:
-      context: ./services/tokenization-service
-      dockerfile: Dockerfile
-    ports:
-      - "3006:3006"
-    environment:
-      - NODE_ENV=production
-      - PORT=3006
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_tokenization?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - ASSET_SERVICE_URL=http://asset-service:3005
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - LEDGER_SERVICE_URL=http://ledger-service:3012
-      # Blockchain configuration
-      - BLOCKCHAIN_NETWORK=${BLOCKCHAIN_NETWORK:-testnet}
-      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL:-https://goerli.infura.io/v3/your-project-id}
-      - ETHEREUM_PRIVATE_KEY=${ETHEREUM_PRIVATE_KEY:-your-ethereum-private-key}
-      - TOKEN_CONTRACT_ADDRESS=${TOKEN_CONTRACT_ADDRESS:-your-token-contract-address}
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - tokenization-service-logs:/app/logs
-      - tokenization-service-keys:/app/keys
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3006/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
+  # Currency Conversion Service - Real-time pricing and currency conversion
   currency-conversion-service:
     build:
       context: ./services/currency-conversion-service
       dockerfile: Dockerfile
     ports:
-      - "3007:3007"
+      - "3004:3004"
     environment:
       - NODE_ENV=production
-      - PORT=3007
+      - PORT=3004
       - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_currency?authSource=admin
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
@@ -325,6 +137,9 @@ services:
       - EXCHANGE_RATE_API_KEY=${EXCHANGE_RATE_API_KEY:-your-exchange-rate-api-key}
       - FIXER_API_KEY=${FIXER_API_KEY:-your-fixer-api-key}
       - CURRENCYLAYER_API_KEY=${CURRENCYLAYER_API_KEY:-your-currencylayer-api-key}
+      - COINBASE_API_KEY=${COINBASE_API_KEY:-your-coinbase-api-key}
+      - COINBASE_API_SECRET=${COINBASE_API_SECRET:-your-coinbase-api-secret}
+      - METALS_API_KEY=${METALS_API_KEY:-your-metals-api-key}
       - CACHE_TTL=300
       - RATE_UPDATE_INTERVAL=60000
     depends_on:
@@ -336,27 +151,29 @@ services:
       - currency-service-logs:/app/logs
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
-  bitcoin-service:
+  # Crypto Service - Bitcoin wallets, transactions, blockchain integration
+  crypto-service:
     build:
-      context: ./services/bitcoin-service
+      context: ./services/crypto-service
       dockerfile: Dockerfile
     ports:
-      - "3008:3008"
+      - "3005:3005"
     environment:
       - NODE_ENV=production
-      - PORT=3008
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_bitcoin?authSource=admin
+      - PORT=3005
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_crypto?authSource=admin
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       # Bitcoin configuration
       - BITCOIN_NETWORK=${BITCOIN_NETWORK:-testnet}
-      - BITCOIN_RPC_URL=${BITCOIN_RPC_URL:-http://bitcoin-node:8332}
+      - BITCOIN_RPC_HOST=${BITCOIN_RPC_HOST:-bitcoin-node}
+      - BITCOIN_RPC_PORT=${BITCOIN_RPC_PORT:-18332}
       - BITCOIN_RPC_USER=${BITCOIN_RPC_USER:-bitcoin}
       - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD:-password}
       - BITCOIN_WALLET_NAME=${BITCOIN_WALLET_NAME:-swiftpayme_wallet}
@@ -365,10 +182,10 @@ services:
       # External Bitcoin APIs
       - BLOCKSTREAM_API_URL=https://blockstream.info/testnet/api
       - BLOCKCHAIN_INFO_API_URL=https://testnet.blockchain.info
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - TRANSACTION_SERVICE_URL=http://transaction-service:3004
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
+      - USER_SERVICE_URL=http://user-service:3002
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
     depends_on:
       - mongodb
       - redis
@@ -376,31 +193,112 @@ services:
     networks:
       - swiftpay-network
     volumes:
-      - bitcoin-service-logs:/app/logs
-      - bitcoin-service-wallets:/app/wallets
+      - crypto-service-logs:/app/logs
+      - crypto-service-wallets:/app/wallets
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3008/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
 
+  # Payment Service - Payment orchestration and transaction processing
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=production
+      - PORT=3006
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_payments?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - USER_SERVICE_URL=http://user-service:3002
+      - ASSET_SERVICE_URL=http://asset-service:3003
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - CRYPTO_SERVICE_URL=http://crypto-service:3005
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - swiftpay-network
+    volumes:
+      - payment-service-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Admin Service - Administrative interface and asset management
+  admin-service:
+    build:
+      context: ./services/admin-service
+      dockerfile: Dockerfile
+    ports:
+      - "3007:3007"
+    environment:
+      - NODE_ENV=production
+      - PORT=3007
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_admin?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-your-super-secret-admin-jwt-key-change-this-in-production}
+      - USER_SERVICE_URL=http://user-service:3002
+      - ASSET_SERVICE_URL=http://asset-service:3003
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - CRYPTO_SERVICE_URL=http://crypto-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
+    depends_on:
+      - mongodb
+      - redis
+      - user-service
+      - asset-service
+      - currency-conversion-service
+      - crypto-service
+      - payment-service
+      - notification-service
+    networks:
+      - swiftpay-network
+    volumes:
+      - admin-service-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3007/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Notification Service - Multi-channel notifications and alerts
   notification-service:
     build:
       context: ./services/notification-service
       dockerfile: Dockerfile
     ports:
-      - "3009:3009"
+      - "3008:3008"
     environment:
       - NODE_ENV=production
-      - PORT=3009
+      - PORT=3008
       - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_notifications?authSource=admin
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
       # Email configuration
       - SENDGRID_API_KEY=${SENDGRID_API_KEY:-your-sendgrid-api-key}
       - SENDGRID_FROM_EMAIL=${SENDGRID_FROM_EMAIL:-noreply@swiftpayme.com}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-your-email@gmail.com}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-your-email-password}
       # SMS configuration
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-your-twilio-account-sid}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-your-twilio-auth-token}
@@ -412,6 +310,7 @@ services:
       - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN:-your-slack-bot-token}
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-your-slack-webhook-url}
       - USER_SERVICE_URL=http://user-service:3002
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
     depends_on:
       - mongodb
       - redis
@@ -421,167 +320,7 @@ services:
       - notification-service-logs:/app/logs
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3009/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  analytics-service:
-    build:
-      context: ./services/analytics-service
-      dockerfile: Dockerfile
-    ports:
-      - "3010:3010"
-    environment:
-      - NODE_ENV=production
-      - PORT=3010
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_analytics?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - TRANSACTION_SERVICE_URL=http://transaction-service:3004
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - USER_SERVICE_URL=http://user-service:3002
-      - ASSET_SERVICE_URL=http://asset-service:3005
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - REPORT_GENERATION_INTERVAL=3600000
-      - DATA_RETENTION_DAYS=365
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - analytics-service-logs:/app/logs
-      - analytics-service-reports:/app/reports
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3010/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  compliance-service:
-    build:
-      context: ./services/compliance-service
-      dockerfile: Dockerfile
-    ports:
-      - "3011:3011"
-    environment:
-      - NODE_ENV=production
-      - PORT=3011
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_compliance?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      # AML/KYC configuration
-      - KYC_VERIFICATION_REQUIRED=true
-      - AML_TRANSACTION_LIMIT=10000
-      - SUSPICIOUS_ACTIVITY_THRESHOLD=50000
-      - COMPLIANCE_REPORT_INTERVAL=86400000
-      # External compliance APIs
-      - JUMIO_API_TOKEN=${JUMIO_API_TOKEN:-your-jumio-api-token}
-      - JUMIO_API_SECRET=${JUMIO_API_SECRET:-your-jumio-api-secret}
-      - CHAINALYSIS_API_KEY=${CHAINALYSIS_API_KEY:-your-chainalysis-api-key}
-      - USER_SERVICE_URL=http://user-service:3002
-      - TRANSACTION_SERVICE_URL=http://transaction-service:3004
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - compliance-service-logs:/app/logs
-      - compliance-service-reports:/app/reports
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3011/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  ledger-service:
-    build:
-      context: ./services/ledger-service
-      dockerfile: Dockerfile
-    ports:
-      - "3012:3012"
-    environment:
-      - NODE_ENV=production
-      - PORT=3012
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_ledger?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - ASSET_SERVICE_URL=http://asset-service:3005
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3007
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - DOUBLE_ENTRY_VALIDATION=true
-      - AUDIT_LOG_RETENTION_DAYS=2555
-    depends_on:
-      - mongodb
-      - redis
-    networks:
-      - swiftpay-network
-    volumes:
-      - ledger-service-logs:/app/logs
-      - ledger-service-audit:/app/audit
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3012/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  admin-service:
-    build:
-      context: ./services/admin-service
-      dockerfile: Dockerfile
-    ports:
-      - "3013:3013"
-    environment:
-      - NODE_ENV=production
-      - PORT=3013
-      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_admin?authSource=admin
-      - REDIS_URL=redis://redis:6379
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
-      - ADMIN_JWT_SECRET=${ADMIN_JWT_SECRET:-your-super-secret-admin-jwt-key-change-this-in-production}
-      - USER_SERVICE_URL=http://user-service:3002
-      - ACCOUNT_SERVICE_URL=http://account-service:3003
-      - TRANSACTION_SERVICE_URL=http://transaction-service:3004
-      - ASSET_SERVICE_URL=http://asset-service:3005
-      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3006
-      - LEDGER_SERVICE_URL=http://ledger-service:3012
-      - ANALYTICS_SERVICE_URL=http://analytics-service:3010
-      - NOTIFICATION_SERVICE_URL=http://notification-service:3009
-      - COMPLIANCE_SERVICE_URL=http://compliance-service:3011
-      - BITCOIN_SERVICE_URL=http://bitcoin-service:3008
-      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3007
-    depends_on:
-      - mongodb
-      - redis
-      - user-service
-      - account-service
-      - transaction-service
-      - asset-service
-      - tokenization-service
-      - ledger-service
-      - analytics-service
-      - notification-service
-      - compliance-service
-      - bitcoin-service
-      - currency-conversion-service
-    networks:
-      - swiftpay-network
-    volumes:
-      - admin-service-logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3013/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3008/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -599,11 +338,11 @@ services:
     volumes:
       - mongodb-data:/data/db
       - mongodb-config:/data/configdb
-      - ./docker/mongodb/init-scripts:/docker-entrypoint-initdb.d
+      - ./docker/mongodb/init-scripts:/docker-entrypoint-initdb.d:ro
     networks:
       - swiftpay-network
     restart: unless-stopped
-    command: mongod --auth --replSet rs0
+    command: mongod --auth --bind_ip_all
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
@@ -619,7 +358,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD:-}
     volumes:
       - redis-data:/data
-      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./docker/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
     networks:
       - swiftpay-network
     restart: unless-stopped
@@ -641,7 +380,7 @@ services:
       - BITCOIN_DATA=/bitcoin
     volumes:
       - bitcoin-data:/bitcoin
-      - ./docker/bitcoin/bitcoin.conf:/bitcoin/bitcoin.conf
+      - ./docker/bitcoin/bitcoin.conf:/bitcoin/bitcoin.conf:ro
     networks:
       - swiftpay-network
     restart: unless-stopped
@@ -662,28 +401,6 @@ services:
       retries: 3
       start_period: 120s
 
-  # Message Queue (RabbitMQ)
-  rabbitmq:
-    image: rabbitmq:3.12-management-alpine
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-admin}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-password}
-      - RABBITMQ_DEFAULT_VHOST=swiftpay
-    volumes:
-      - rabbitmq-data:/var/lib/rabbitmq
-    networks:
-      - swiftpay-network
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
   # Monitoring and Logging
   fluentd:
     image: fluent/fluentd:v1.16-debian-1
@@ -691,7 +408,7 @@ services:
       - "24224:24224"
       - "24224:24224/udp"
     volumes:
-      - ./docker/fluentd/conf:/fluentd/etc
+      - ./docker/fluentd/conf:/fluentd/etc:ro
       - fluentd-logs:/var/log/fluentd
     networks:
       - swiftpay-network
@@ -709,31 +426,20 @@ volumes:
   mongodb-config:
   redis-data:
   bitcoin-data:
-  rabbitmq-data:
 
   # Service log volumes
-  auth-service-logs:
   user-service-logs:
-  account-service-logs:
-  transaction-service-logs:
   asset-service-logs:
-  tokenization-service-logs:
   currency-service-logs:
-  bitcoin-service-logs:
-  notification-service-logs:
-  analytics-service-logs:
-  compliance-service-logs:
-  ledger-service-logs:
+  crypto-service-logs:
+  payment-service-logs:
   admin-service-logs:
+  notification-service-logs:
 
   # Service data volumes
   user-service-uploads:
   asset-service-images:
-  tokenization-service-keys:
-  bitcoin-service-wallets:
-  analytics-service-reports:
-  compliance-service-reports:
-  ledger-service-audit:
+  crypto-service-wallets:
 
   # Infrastructure volumes
   fluentd-logs:
