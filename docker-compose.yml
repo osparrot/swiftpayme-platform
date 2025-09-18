@@ -319,6 +319,43 @@ services:
       retries: 3
       start_period: 40s
 
+  # Ledger Service - Double-entry bookkeeping and financial management
+  ledger-service:
+    build:
+      context: ./services/ledger-service
+      dockerfile: Dockerfile
+    ports:
+      - "3010:3010"
+    environment:
+      - NODE_ENV=production
+      - PORT=3010
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_ledger?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
+      - USER_SERVICE_URL=http://user-service:3002
+      - ASSET_SERVICE_URL=http://asset-service:3003
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - CRYPTO_SERVICE_URL=http://crypto-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3009
+      - ADMIN_SERVICE_URL=http://admin-service:3007
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - swiftpay-network
+    volumes:
+      - ledger-service-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3010/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   # Notification Service - Multi-channel notifications and alerts
   notification-service:
     build:
@@ -475,6 +512,7 @@ volumes:
   payment-service-logs:
   admin-service-logs:
   tokenization-service-logs:
+  ledger-service-logs:
   notification-service-logs:
 
   # Service data volumes

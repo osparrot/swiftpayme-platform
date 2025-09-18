@@ -302,6 +302,13 @@ class SwiftPayApiGateway {
         roles: ['user', 'admin', 'super_admin']
       },
       {
+        name: 'ledger-service',
+        path: '/api/ledger',
+        target: process.env.LEDGER_SERVICE_URL || 'http://ledger-service:3010',
+        auth: true,
+        roles: ['user', 'admin', 'super_admin']
+      },
+      {
         name: 'notification-service',
         path: '/api/notifications',
         target: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3008',
