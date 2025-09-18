@@ -295,6 +295,13 @@ class SwiftPayApiGateway {
         roles: ['admin', 'super_admin']
       },
       {
+        name: 'tokenization-service',
+        path: '/api/tokenization',
+        target: process.env.TOKENIZATION_SERVICE_URL || 'http://tokenization-service:3009',
+        auth: true,
+        roles: ['user', 'admin', 'super_admin']
+      },
+      {
         name: 'notification-service',
         path: '/api/notifications',
         target: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3008',
