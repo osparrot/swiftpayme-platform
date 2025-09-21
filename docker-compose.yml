@@ -4,7 +4,7 @@ services:
   # API Gateway - Unified entry point
   api-gateway:
     build:
-      context: ./api-gateway
+      context: ./services/api-gateway
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
@@ -24,6 +24,8 @@ services:
       - PAYMENT_SERVICE_URL=http://payment-service:3006
       - ADMIN_SERVICE_URL=http://admin-service:3007
       - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3009
+      - LEDGER_SERVICE_URL=http://ledger-service:3010
     depends_on:
       - redis
       - user-service
@@ -33,6 +35,8 @@ services:
       - payment-service
       - admin-service
       - notification-service
+      - tokenization-service
+      - ledger-service
     networks:
       - swiftpay-network
     restart: unless-stopped
