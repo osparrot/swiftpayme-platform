@@ -26,6 +26,7 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:3008
       - TOKENIZATION_SERVICE_URL=http://tokenization-service:3009
       - LEDGER_SERVICE_URL=http://ledger-service:3010
+      - ACCOUNT_SERVICE_URL=http://account-service:3011
     depends_on:
       - redis
       - user-service
@@ -37,6 +38,7 @@ services:
       - notification-service
       - tokenization-service
       - ledger-service
+      - account-service
     networks:
       - swiftpay-network
     restart: unless-stopped
@@ -501,6 +503,43 @@ services:
       retries: 3
       start_period: 40s
 
+  # Account Service - Multi-currency account management
+  account-service:
+    build:
+      context: ./services/account-service
+      dockerfile: Dockerfile
+    ports:
+      - "3011:3011"
+    environment:
+      - NODE_ENV=production
+      - PORT=3011
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD:-password}@mongodb:27017/swiftpay_accounts?authSource=admin
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3009
+      - LEDGER_SERVICE_URL=http://ledger-service:3010
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - MASTER_ENCRYPTION_KEY=${MASTER_ENCRYPTION_KEY:-your-32-byte-encryption-key-change-this}
+    depends_on:
+      - mongodb
+      - redis
+      - currency-conversion-service
+      - tokenization-service
+      - ledger-service
+      - notification-service
+    networks:
+      - swiftpay-network
+    volumes:
+      - account-service-logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3011/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
 volumes:
   # Database volumes
   mongodb-data:
@@ -518,6 +557,7 @@ volumes:
   tokenization-service-logs:
   ledger-service-logs:
   notification-service-logs:
+  account-service-logs:
 
   # Service data volumes
   user-service-uploads:
