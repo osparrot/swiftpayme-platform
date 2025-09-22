@@ -313,6 +313,12 @@ class SwiftPayApiGateway {
         path: '/api/notifications',
         target: process.env.NOTIFICATION_SERVICE_URL || 'http://notification-service:3008',
         auth: true
+      },
+      {
+        name: 'account-service',
+        path: '/api/accounts',
+        target: process.env.ACCOUNT_SERVICE_URL || 'http://account-service:3011',
+        auth: true
       }
     ];
 
