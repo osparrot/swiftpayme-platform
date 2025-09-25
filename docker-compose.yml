@@ -1,6 +1,25 @@
 version: '3.8'
 
 services:
+  # Frontend Services
+  admin-ui:
+    build:
+      context: ./admin-ui
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3000"
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000
+      - REACT_APP_WS_URL=ws://localhost:3000
+      - REACT_APP_TITLE=SwiftPayMe Admin
+    depends_on:
+      - api-gateway
+    volumes:
+      - admin_ui_logs:/app/logs
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+
   # API Gateway - Unified entry point
   api-gateway:
     build:
