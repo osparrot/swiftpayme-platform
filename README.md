@@ -1,401 +1,149 @@
-# SwiftPayMe - Production-Ready Payment System
+# SwiftPayMe - Professional Asset Deposit and Cryptocurrency Trading Platform
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
-[![Docker](https://img.shields.io/badge/docker-%3E%3D20.0.0-blue)](https://www.docker.com/)
-[![TypeScript](https://img.shields.io/badge/typescript-%3E%3D5.0.0-blue)](https://www.typescriptlang.org/)
+SwiftPayMe is a comprehensive, enterprise-grade financial platform that enables users to deposit physical assets (gold, silver, diamonds), receive fiat credit, and seamlessly trade cryptocurrencies. The system is built on a modern microservices architecture, ensuring scalability, security, and maintainability.
 
-SwiftPayMe is a comprehensive, production-ready microservices-based payment system that enables users to deposit physical assets (gold, silver, diamonds), receive fiat credits, and purchase Bitcoin. The system features enterprise-grade security, real-time currency conversion, and seamless Bitcoin integration.
+## 🌟 Key Features
 
-## 🚀 Features
+- **Physical Asset Deposit**: A complete workflow for depositing, verifying, and receiving credit for precious assets.
+- **Multi-Currency Accounts**: Manage fiat currencies (USD, EUR, GBP) with real-time conversion.
+- **Bitcoin Wallet**: A full-featured Bitcoin wallet for buying, selling, sending, and receiving BTC.
+- **Portfolio Management**: A comprehensive dashboard to track asset allocation, performance, and transaction history.
+- **Real-Time Notifications**: Instant updates on transactions, asset status, and market changes via WebSockets.
+- **Enterprise-Grade Security**: Multi-factor authentication, KYC/AML compliance, and end-to-end encryption.
+- **Scalable Microservices**: 11+ microservices for handling specific business domains, ensuring high availability and performance.
+- **Responsive UIs**: A modern, mobile-first Web UI for users and a comprehensive Admin UI for system management.
 
-### Core Capabilities
-- **Physical Asset Management** - Accept and verify gold, silver, and diamond deposits
-- **Professional Asset Verification** - Multi-stage verification with professional appraisal
-- **Real-Time Currency Conversion** - Live pricing for 150+ fiat currencies and precious metals
-- **Bitcoin Integration** - Complete Bitcoin wallet management and transaction processing
-- **Multi-Currency Support** - Handle deposits and transactions in multiple currencies
-- **Enterprise Security** - JWT authentication, RBAC, encryption, and comprehensive audit trails
+## 🏛️ System Architecture
 
-### Business Workflows
-- **Asset Deposit Workflow** - Physical asset → Verification → Valuation → Fiat Credit
-- **Bitcoin Purchase Workflow** - Fiat Balance → Real-time Pricing → Bitcoin Purchase
-- **Bitcoin Transfer Workflow** - Internal wallets → External wallet transfers
-- **Admin Management** - Complete administrative interface for asset and user management
+The SwiftPayMe platform is composed of three main components:
 
-### Technical Features
-- **Microservices Architecture** - 7 independent, scalable services
-- **Event-Driven Communication** - Redis-based event bus for real-time updates
-- **API Gateway** - Unified entry point with rate limiting and security
-- **Comprehensive Testing** - Unit, integration, E2E, security, and load testing
-- **Production Monitoring** - Health checks, logging, and performance metrics
-
-## 🏗️ Architecture
+1.  **Microservices**: A collection of independent services that handle the core business logic.
+2.  **Web UI**: A user-facing React application for all customer interactions.
+3.  **Admin UI**: A React-based dashboard for system administration and management.
 
 ### Microservices Overview
 
-| Service | Port | Description |
-|---------|------|-------------|
-| **API Gateway** | 3000 | Unified entry point, authentication, rate limiting |
-| **User Service** | 3002 | User management, authentication, KYC, accounts |
-| **Asset Service** | 3003 | Physical asset deposits, verification, valuation |
-| **Currency Service** | 3004 | Real-time pricing, currency conversion |
-| **Crypto Service** | 3005 | Bitcoin wallets, transactions, blockchain integration |
-| **Payment Service** | 3006 | Payment orchestration, transaction processing |
-| **Admin Service** | 3007 | Administrative interface, asset management |
-| **Notification Service** | 3008 | Multi-channel notifications, alerts |
+| Service                       | Port | Description                                                                 |
+| ----------------------------- | ---- | --------------------------------------------------------------------------- |
+| **API Gateway**               | 3000 | The single entry point for all client requests, handling routing and security. |
+| **User Service**              | 3002 | Manages user authentication, profiles, and KYC verification.                |
+| **Asset Service**             | 3003 | Handles the physical asset deposit and verification workflow.               |
+| **Currency Conversion Service** | 3004 | Provides real-time exchange rates and currency conversion.                  |
+| **Crypto Service**            | 3005 | Manages Bitcoin wallets, transactions, and blockchain interactions.         |
+| **Payment Service**           | 3006 | Orchestrates payment workflows, including asset-to-crypto trades.           |
+| **Admin Service**             | 3007 | Provides administrative functionalities for the Admin UI.                     |
+| **Notification Service**      | 3008 | Sends real-time notifications via WebSockets, email, and SMS.               |
+| **Tokenization Service**      | 3009 | Manages the tokenization of physical assets.                                |
+| **Ledger Service**            | 3010 | A double-entry accounting system for all transactions.                      |
+| **Account Service**           | 3011 | Manages user accounts, balances, and currency holdings.                     |
 
-### Infrastructure Components
+### Frontend Applications
 
-- **MongoDB** - Primary database for all services
-- **Redis** - Caching, session storage, event bus
-- **Bitcoin Core** - Bitcoin node for cryptocurrency operations
-- **Fluentd** - Centralized logging and monitoring
-- **NGINX** - Load balancing and reverse proxy
+-   **Web UI**: A responsive React application providing a seamless user experience for all platform features. Built with Vite, Tailwind CSS, and Radix UI.
+-   **Admin UI**: A comprehensive dashboard for administrators to manage users, assets, transactions, and system settings.
 
-## 🚀 Quick Start
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- **Docker** >= 20.0.0
-- **Docker Compose** >= 2.0.0
-- **Node.js** >= 18.0.0 (for development)
-- **Git** for version control
+-   Docker and Docker Compose
+-   Node.js 18+ and npm
+-   Git
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/username/swiftpayment.git
-   cd swiftpayment
-   ```
+1.  **Clone the repository:**
 
-2. **Environment setup**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
+    ```bash
+    git clone https://github.com/your-username/swiftpayme.git
+    cd swiftpayme
+    ```
 
-3. **Build and start services**
-   ```bash
-   npm run setup    # Install dependencies and build images
-   npm start        # Start all services
-   ```
+2.  **Set up the environment:**
 
-4. **Verify installation**
-   ```bash
-   npm run health   # Check service health
-   ```
+    ```bash
+    cp .env.example .env
+    # Edit .env with your configuration, especially the JWT_SECRET
+    ```
 
-### Development Setup
+3.  **Install dependencies and build the applications:**
 
-1. **Install dependencies**
-   ```bash
-   npm install
-   ```
+    ```bash
+    npm run install:all
+    npm run build
+    ```
 
-2. **Start development environment**
-   ```bash
-   npm run dev      # Start with development configuration
-   ```
+### Running the System
 
-3. **Run tests**
-   ```bash
-   npm test         # Run all test suites
-   npm run test:unit        # Unit tests only
-   npm run test:integration # Integration tests
-   npm run test:e2e         # End-to-end tests
-   ```
-
-## 📖 API Documentation
-
-### Authentication
-
-All API requests require authentication via JWT tokens:
+#### With Docker (Recommended)
 
 ```bash
-# Login to get access token
-curl -X POST http://localhost:3000/api/users/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password"}'
+# Build and start all services in detached mode
+docker-compose up --build -d
 
-# Use token in subsequent requests
-curl -X GET http://localhost:3000/api/users/profile \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN"
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
 ```
 
-### Core API Endpoints
+Once the system is running, you can access:
 
-#### User Management
-- `POST /api/users/register` - User registration
-- `POST /api/users/login` - User authentication
-- `GET /api/users/profile` - Get user profile
-- `POST /api/users/kyc/submit` - Submit KYC documents
+-   **Web UI**: `http://localhost:3000`
+-   **Admin UI**: `http://localhost:3001`
+-   **API Gateway**: `http://localhost:8080`
 
-#### Asset Management
-- `POST /api/assets/deposits` - Submit asset deposit
-- `GET /api/assets/deposits/{id}` - Get deposit status
-- `GET /api/assets/deposits` - List user deposits
-
-#### Currency & Pricing
-- `GET /api/currency/rates` - Get exchange rates
-- `GET /api/currency/prices/precious-metals/{metal}` - Get metal prices
-- `GET /api/currency/prices/crypto/{symbol}` - Get crypto prices
-
-#### Bitcoin Operations
-- `POST /api/crypto/wallets` - Create Bitcoin wallet
-- `POST /api/payments/bitcoin/buy` - Purchase Bitcoin
-- `POST /api/payments/bitcoin/transfer` - Transfer Bitcoin
-
-#### Admin Operations
-- `PUT /api/admin/assets/{id}/receipt` - Acknowledge asset receipt
-- `POST /api/admin/assets/{id}/verify` - Verify asset
-- `POST /api/admin/assets/{id}/approve` - Approve asset for crediting
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file based on `.env.example`:
+#### Without Docker (for development)
 
 ```bash
-# Database Configuration
-MONGODB_URI=mongodb://mongodb:27017/swiftpayme
-REDIS_URL=redis://redis:6379
-
-# Security Configuration
-JWT_SECRET=your-super-secret-jwt-key
-MASTER_ENCRYPTION_KEY=your-32-byte-encryption-key
-
-# Bitcoin Configuration
-BITCOIN_RPC_HOST=bitcoin-node
-BITCOIN_RPC_PORT=8332
-BITCOIN_RPC_USER=bitcoin
-BITCOIN_RPC_PASSWORD=your-bitcoin-password
-
-# External APIs
-COINBASE_API_KEY=your-coinbase-api-key
-METALS_API_KEY=your-metals-api-key
-
-# Notification Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=your-email@gmail.com
-SMTP_PASSWORD=your-email-password
+# Start all services concurrently
+npm run dev
 ```
 
 ## 🧪 Testing
 
-### Test Suites
-
-SwiftPayMe includes comprehensive testing:
+The platform includes a comprehensive suite of tests:
 
 ```bash
 # Run all tests
 npm test
 
-# Run specific test suites
-npm run test:unit        # Unit tests
-npm run test:integration # Integration tests
-npm run test:e2e         # End-to-end tests
-npm run test:security    # Security tests
-npm run test:load        # Load tests
+# Run unit tests
+npm run test:unit
 
-# Generate coverage report
+# Run integration tests
+npm run test:integration
+
+# Run end-to-end tests
+npm run test:e2e
+
+# Get test coverage
 npm run test:coverage
 ```
 
-### Test Configuration
-
-- **Unit Tests**: Individual service functionality
-- **Integration Tests**: Inter-service communication
-- **E2E Tests**: Complete user workflows
-- **Security Tests**: Vulnerability assessment
-- **Load Tests**: Performance under load
-
 ## 🔒 Security
 
-### Security Features
+Security is a top priority for SwiftPayMe. The platform includes:
 
-- **JWT Authentication** - Secure token-based authentication
-- **Role-Based Access Control** - Granular permission management
-- **API Rate Limiting** - Protection against abuse
-- **Input Validation** - Comprehensive data sanitization
-- **Encryption** - AES-256 encryption for sensitive data
-- **Audit Logging** - Complete security event tracking
-
-### Security Best Practices
-
-- All passwords are hashed using bcrypt
-- Sensitive data is encrypted at rest
-- API endpoints are protected with authentication
-- Rate limiting prevents brute force attacks
-- Comprehensive audit trails for compliance
-
-## 📊 Monitoring & Logging
-
-### Health Monitoring
-
-```bash
-# Check overall system health
-curl http://localhost:3000/health
-
-# Check individual service health
-curl http://localhost:3002/health  # User Service
-curl http://localhost:3003/health  # Asset Service
-curl http://localhost:3004/health  # Currency Service
-```
-
-### Logging
-
-- **Centralized Logging** - Fluentd aggregates logs from all services
-- **Structured Logging** - JSON format for easy parsing
-- **Log Levels** - DEBUG, INFO, WARN, ERROR, FATAL
-- **Audit Trails** - Complete transaction and security event logging
-
-## 🚀 Deployment
-
-### Production Deployment
-
-1. **Environment Setup**
-   ```bash
-   # Copy production environment
-   cp .env.production .env
-   
-   # Update configuration for production
-   vim .env
-   ```
-
-2. **Deploy Services**
-   ```bash
-   # Production deployment
-   npm run deploy:production
-   
-   # Or using Docker Compose
-   docker-compose -f docker-compose.prod.yml up -d
-   ```
-
-3. **Verify Deployment**
-   ```bash
-   # Check service health
-   npm run health
-   
-   # Run smoke tests
-   npm run test:e2e
-   ```
+-   **Authentication**: JWT-based authentication with refresh tokens.
+-   **Authorization**: Role-based access control for all services.
+-   **Data Encryption**: End-to-end encryption for all data in transit and at rest.
+-   **Input Validation**: All incoming data is validated and sanitized.
+-   **Security Headers**: Helmet.js is used to set secure HTTP headers.
+-   **Rate Limiting**: To prevent brute-force attacks.
 
 ## 📚 Documentation
 
-### Service Documentation
-
-- [User Service](services/user-service/README.md) - User management and authentication
-- [Asset Service](services/asset-service/README.md) - Physical asset management
-- [Currency Service](services/currency-conversion-service/README.md) - Currency conversion
-- [Crypto Service](services/crypto-service/README.md) - Bitcoin operations
-- [Payment Service](services/payment-service/README.md) - Payment orchestration
-- [Admin Service](services/admin-service/README.md) - Administrative interface
-- [Notification Service](services/notification-service/README.md) - Notifications
-
-### API Documentation
-
-- [API Gateway Documentation](api-gateway/README.md)
-- [Service Contracts](shared/contracts/service-contracts.ts)
-- [Event Bus Documentation](shared/events/event-bus.ts)
+-   [API Documentation](./services/api-gateway/README.md)
+-   [Web UI Documentation](./web-ui/README.md)
+-   [Deployment Guide](./DEPLOYMENT.md)
 
 ## 🤝 Contributing
 
-### Development Workflow
-
-1. **Fork the repository**
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
-3. **Make your changes**
-4. **Run tests**
-   ```bash
-   npm test
-   npm run lint
-   npm run typecheck
-   ```
-5. **Commit your changes**
-   ```bash
-   git commit -m "Add your feature description"
-   ```
-6. **Push to your fork**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-7. **Create a Pull Request**
-
-### Code Standards
-
-- **TypeScript** - All code must be written in TypeScript
-- **ESLint** - Follow the configured linting rules
-- **Prettier** - Use Prettier for code formatting
-- **Testing** - Maintain 80%+ test coverage
-- **Documentation** - Update documentation for new features
+Contributions are welcome! Please read our [contributing guidelines](./CONTRIBUTING.md) to get started.
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🆘 Support
-
-### Getting Help
-
-- **Documentation** - Check the service-specific README files
-- **Issues** - Create an issue on GitHub for bugs or feature requests
-- **Discussions** - Use GitHub Discussions for questions
-
-### Troubleshooting
-
-#### Common Issues
-
-1. **Services not starting**
-   ```bash
-   # Check Docker status
-   docker-compose ps
-   
-   # View service logs
-   npm run logs
-   ```
-
-2. **Database connection issues**
-   ```bash
-   # Restart database services
-   docker-compose restart mongodb redis
-   ```
-
-3. **Test failures**
-   ```bash
-   # Clean and rebuild
-   npm run clean
-   npm run setup
-   npm test
-   ```
-
-## 🗺️ Roadmap
-
-### Upcoming Features
-
-- **Mobile App** - React Native mobile application
-- **Advanced Analytics** - Business intelligence dashboard
-- **Multi-Signature Wallets** - Enhanced Bitcoin security
-- **Additional Cryptocurrencies** - Ethereum, Litecoin support
-- **API Marketplace** - Third-party integrations
-- **Advanced KYC** - Biometric verification
-
-### Version History
-
-- **v1.0.0** - Initial production release
-  - Complete microservices architecture
-  - Physical asset management
-  - Bitcoin integration
-  - Enterprise security
-  - Comprehensive testing
-
----
-
-**SwiftPayMe** - Transforming physical assets into digital value with enterprise-grade security and reliability.
+This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
 
