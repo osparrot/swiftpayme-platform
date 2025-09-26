@@ -75,10 +75,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/swiftpayme/platform.git"
+    "url": "https://github.com/osparrot/swiftpayme-platform.git"
   },
   "bugs": {
-    "url": "https://github.com/swiftpayme/platform/issues"
+    "url": "https://github.com/osparrot/swiftpayme-platform/issues"
   },
   "homepage": "https://swiftpayme.com"
 }

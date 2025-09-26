@@ -17,8 +17,8 @@ Before deploying SwiftPayMe, ensure your infrastructure meets the following requ
 1.  **Clone the repository:**
 
     ```bash
-    git clone https://github.com/your-username/swiftpayme.git
-    cd swiftpayme
+    git clone https://github.com/osparrot/swiftpayme-platform.git
+    cd swiftpayme-platform
     ```
 
 2.  **Create a production environment file:**
