@@ -1,0 +1,785 @@
+version: '3.8'
+
+# Production-Grade SwiftPayMe Platform
+# Enhanced Docker Compose Configuration with Bitcoin Core and Lightning Network
+
+services:
+  # Reverse Proxy and Load Balancer
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: swiftpay-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/html:/usr/share/nginx/html:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - api-gateway
+      - web-ui
+      - admin-ui
+    networks:
+      - swiftpay-network
+      - swiftpay-external
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Frontend Services
+  web-ui:
+    build:
+      context: ./web-ui
+      dockerfile: Dockerfile
+      target: production
+    container_name: swiftpay-web-ui
+    expose:
+      - "80"
+    environment:
+      - NODE_ENV=production
+      - NGINX_HOST=0.0.0.0
+      - NGINX_PORT=80
+      - API_URL=https://api.swiftpayme.com
+      - WS_URL=wss://api.swiftpayme.com/ws
+    depends_on:
+      - api-gateway
+    volumes:
+      - web_ui_logs:/var/log/nginx
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  admin-ui:
+    build:
+      context: ./admin-ui
+      dockerfile: Dockerfile
+      target: production
+    container_name: swiftpay-admin-ui
+    expose:
+      - "80"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=https://admin.swiftpayme.com/api
+      - REACT_APP_WS_URL=wss://admin.swiftpayme.com/ws
+      - REACT_APP_TITLE=SwiftPayMe Admin Dashboard
+      - REACT_APP_VERSION=${APP_VERSION:-1.0.0}
+    depends_on:
+      - api-gateway
+    volumes:
+      - admin_ui_logs:/var/log/nginx
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.3'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+
+  # API Gateway - Enhanced with production settings
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+      target: production
+    container_name: swiftpay-api-gateway
+    expose:
+      - "3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CLUSTER_MODE=true
+      - WORKERS=${API_WORKERS:-4}
+      
+      # Database connections
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD}@mongodb-primary:27017,mongodb-secondary:27017/swiftpay_gateway?authSource=admin&replicaSet=rs0
+      - REDIS_CLUSTER_NODES=redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      
+      # Security
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - API_KEY_SECRET=${API_KEY_SECRET}
+      
+      # Rate limiting
+      - RATE_LIMIT_WINDOW_MS=900000
+      - RATE_LIMIT_MAX_REQUESTS=1000
+      - RATE_LIMIT_SKIP_SUCCESSFUL_REQUESTS=true
+      
+      # CORS and security
+      - CORS_ORIGINS=https://swiftpayme.com,https://app.swiftpayme.com,https://admin.swiftpayme.com
+      - HELMET_ENABLED=true
+      - TRUST_PROXY=true
+      
+      # Service discovery
+      - SERVICE_DISCOVERY_ENABLED=true
+      - HEALTH_CHECK_INTERVAL=30000
+      - CIRCUIT_BREAKER_ENABLED=true
+      
+      # Microservice URLs
+      - USER_SERVICE_URL=http://user-service:3002
+      - ASSET_SERVICE_URL=http://asset-service:3003
+      - CURRENCY_SERVICE_URL=http://currency-conversion-service:3004
+      - CRYPTO_SERVICE_URL=http://crypto-service:3005
+      - PAYMENT_SERVICE_URL=http://payment-service:3006
+      - ADMIN_SERVICE_URL=http://admin-service:3007
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3008
+      - TOKENIZATION_SERVICE_URL=http://tokenization-service:3009
+      - LEDGER_SERVICE_URL=http://ledger-service:3010
+      - ACCOUNT_SERVICE_URL=http://account-service:3011
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3012
+      - COMPLIANCE_SERVICE_URL=http://compliance-service:3013
+      
+      # Monitoring and logging
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - METRICS_ENABLED=true
+      - TRACING_ENABLED=true
+      - JAEGER_ENDPOINT=${JAEGER_ENDPOINT}
+      
+    depends_on:
+      - mongodb-primary
+      - redis-node-1
+      - user-service
+      - crypto-service
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # Enhanced Crypto Service with Bitcoin Core and Lightning
+  crypto-service:
+    build:
+      context: ./services/crypto-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: swiftpay-crypto-service
+    expose:
+      - "3005"
+    environment:
+      - NODE_ENV=production
+      - PORT=3005
+      - CLUSTER_MODE=true
+      - WORKERS=${CRYPTO_WORKERS:-2}
+      
+      # Database
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD}@mongodb-primary:27017,mongodb-secondary:27017/swiftpay_crypto?authSource=admin&replicaSet=rs0
+      - REDIS_CLUSTER_NODES=redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      
+      # Bitcoin Core configuration
+      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-mainnet}
+      - BITCOIN_RPC_HOST=bitcoin-core
+      - BITCOIN_RPC_PORT=8332
+      - BITCOIN_RPC_USER=${BITCOIN_RPC_USER}
+      - BITCOIN_RPC_PASSWORD=${BITCOIN_RPC_PASSWORD}
+      - BITCOIN_RPC_TIMEOUT=30000
+      - BITCOIN_RPC_MAX_RETRIES=3
+      - BITCOIN_RPC_POOL_SIZE=10
+      
+      # Lightning Network configuration
+      - LIGHTNING_ENABLED=true
+      - LND_HOST=lnd
+      - LND_PORT=10009
+      - LND_TLS_CERT_PATH=/lnd/tls.cert
+      - LND_MACAROON_PATH=/lnd/admin.macaroon
+      - LND_TIMEOUT=30000
+      - LND_MAX_RETRIES=3
+      
+      # Security
+      - WALLET_ENCRYPTION_KEY=${WALLET_ENCRYPTION_KEY}
+      - SEED_ENCRYPTION_KEY=${SEED_ENCRYPTION_KEY}
+      
+      # Performance
+      - CACHE_TTL=300
+      - MAX_CONCURRENT_REQUESTS=100
+      - REQUEST_TIMEOUT=30000
+      
+      # Monitoring
+      - METRICS_ENABLED=true
+      - PERFORMANCE_MONITORING=true
+      - BLOCKCHAIN_MONITORING=true
+      - MEMPOOL_MONITORING=true
+      
+    depends_on:
+      - mongodb-primary
+      - redis-node-1
+      - bitcoin-core
+      - lnd
+    volumes:
+      - bitcoin_data:/bitcoin
+      - lnd_data:/lnd
+      - crypto_logs:/app/logs
+    networks:
+      - swiftpay-network
+      - bitcoin-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.5'
+        reservations:
+          memory: 1G
+          cpus: '0.75'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "10"
+
+  # Bitcoin Core Node
+  bitcoin-core:
+    image: bitcoin/bitcoin:25.0
+    container_name: swiftpay-bitcoin-core
+    expose:
+      - "8332"
+      - "8333"
+    ports:
+      - "8333:8333"  # P2P port for mainnet
+    environment:
+      - BITCOIN_NETWORK=${BITCOIN_NETWORK:-mainnet}
+    volumes:
+      - bitcoin_data:/bitcoin/.bitcoin
+      - ./docker/bitcoin/bitcoin.conf:/bitcoin/.bitcoin/bitcoin.conf:ro
+    networks:
+      - bitcoin-network
+      - swiftpay-network
+    restart: unless-stopped
+    command: >
+      bitcoind
+      -conf=/bitcoin/.bitcoin/bitcoin.conf
+      -datadir=/bitcoin/.bitcoin
+      -printtoconsole
+      -server=1
+      -rest=1
+      -rpcallowip=0.0.0.0/0
+      -rpcbind=0.0.0.0:8332
+      -rpcuser=${BITCOIN_RPC_USER}
+      -rpcpassword=${BITCOIN_RPC_PASSWORD}
+      -txindex=1
+      -dbcache=2048
+      -maxmempool=1024
+      -mempoolexpiry=72
+      -maxconnections=125
+      -maxuploadtarget=5000
+    healthcheck:
+      test: ["CMD", "bitcoin-cli", "-rpcuser=${BITCOIN_RPC_USER}", "-rpcpassword=${BITCOIN_RPC_PASSWORD}", "getblockchaininfo"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4.0'
+        reservations:
+          memory: 4G
+          cpus: '2.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "500m"
+        max-file: "5"
+
+  # Lightning Network Daemon (LND)
+  lnd:
+    image: lightninglabs/lnd:v0.17.0-beta
+    container_name: swiftpay-lnd
+    expose:
+      - "9735"
+      - "10009"
+    ports:
+      - "9735:9735"  # P2P port
+    environment:
+      - LND_NETWORK=${BITCOIN_NETWORK:-mainnet}
+    volumes:
+      - lnd_data:/root/.lnd
+      - bitcoin_data:/bitcoin/.bitcoin:ro
+      - ./docker/lnd/lnd.conf:/root/.lnd/lnd.conf:ro
+    networks:
+      - bitcoin-network
+      - swiftpay-network
+    depends_on:
+      - bitcoin-core
+    restart: unless-stopped
+    command: >
+      lnd
+      --configfile=/root/.lnd/lnd.conf
+      --bitcoin.active
+      --bitcoin.${BITCOIN_NETWORK:-mainnet}
+      --bitcoin.node=bitcoind
+      --bitcoind.rpchost=bitcoin-core:8332
+      --bitcoind.rpcuser=${BITCOIN_RPC_USER}
+      --bitcoind.rpcpass=${BITCOIN_RPC_PASSWORD}
+      --bitcoind.zmqpubrawblock=tcp://bitcoin-core:28332
+      --bitcoind.zmqpubrawtx=tcp://bitcoin-core:28333
+      --rpclisten=0.0.0.0:10009
+      --listen=0.0.0.0:9735
+      --restlisten=0.0.0.0:8080
+      --tlsextradomain=lnd
+      --tlsextraip=0.0.0.0
+      --accept-keysend
+      --accept-amp
+      --protocol.wumbo-channels
+      --gc-canceled-invoices-on-startup
+      --gc-canceled-invoices-on-the-fly
+      --allow-circular-route
+      --max-cltv-expiry=5000
+      --max-outstanding-payments=1000
+    healthcheck:
+      test: ["CMD", "lncli", "--network=${BITCOIN_NETWORK:-mainnet}", "getinfo"]
+      interval: 60s
+      timeout: 30s
+      retries: 5
+      start_period: 300s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "200m"
+        max-file: "10"
+
+  # Enhanced User Service
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+      target: production
+    container_name: swiftpay-user-service
+    expose:
+      - "3002"
+    environment:
+      - NODE_ENV=production
+      - PORT=3002
+      - CLUSTER_MODE=true
+      - WORKERS=${USER_WORKERS:-2}
+      - MONGODB_URI=mongodb://admin:${MONGODB_PASSWORD}@mongodb-primary:27017,mongodb-secondary:27017/swiftpay_users?authSource=admin&replicaSet=rs0
+      - REDIS_CLUSTER_NODES=redis-node-1:6379,redis-node-2:6379,redis-node-3:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - KYC_PROVIDER_API_KEY=${KYC_PROVIDER_API_KEY}
+      - EMAIL_SERVICE_API_KEY=${EMAIL_SERVICE_API_KEY}
+      - SMS_SERVICE_API_KEY=${SMS_SERVICE_API_KEY}
+      - METRICS_ENABLED=true
+    depends_on:
+      - mongodb-primary
+      - redis-node-1
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  # MongoDB Replica Set - Primary
+  mongodb-primary:
+    image: mongo:7.0
+    container_name: swiftpay-mongodb-primary
+    expose:
+      - "27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+      - MONGO_REPLICA_SET_NAME=rs0
+      - MONGO_REPLICA_SET_MODE=primary
+    volumes:
+      - mongodb_primary_data:/data/db
+      - mongodb_primary_config:/data/configdb
+      - ./docker/mongodb/init-replica.js:/docker-entrypoint-initdb.d/init-replica.js:ro
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    command: >
+      mongod
+      --replSet rs0
+      --bind_ip_all
+      --auth
+      --keyFile /data/configdb/mongodb-keyfile
+      --oplogSize 1024
+      --wiredTigerCacheSizeGB 2
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+
+  # MongoDB Replica Set - Secondary
+  mongodb-secondary:
+    image: mongo:7.0
+    container_name: swiftpay-mongodb-secondary
+    expose:
+      - "27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGODB_PASSWORD}
+      - MONGO_REPLICA_SET_NAME=rs0
+      - MONGO_REPLICA_SET_MODE=secondary
+    volumes:
+      - mongodb_secondary_data:/data/db
+      - mongodb_secondary_config:/data/configdb
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    depends_on:
+      - mongodb-primary
+    command: >
+      mongod
+      --replSet rs0
+      --bind_ip_all
+      --auth
+      --keyFile /data/configdb/mongodb-keyfile
+      --oplogSize 1024
+      --wiredTigerCacheSizeGB 1
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  # Redis Cluster - Node 1 (Master)
+  redis-node-1:
+    image: redis:7.2-alpine
+    container_name: swiftpay-redis-node-1
+    expose:
+      - "6379"
+      - "16379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis_node_1_data:/data
+      - ./docker/redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD}
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Redis Cluster - Node 2 (Master)
+  redis-node-2:
+    image: redis:7.2-alpine
+    container_name: swiftpay-redis-node-2
+    expose:
+      - "6379"
+      - "16379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis_node_2_data:/data
+      - ./docker/redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD}
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Redis Cluster - Node 3 (Master)
+  redis-node-3:
+    image: redis:7.2-alpine
+    container_name: swiftpay-redis-node-3
+    expose:
+      - "6379"
+      - "16379"
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    volumes:
+      - redis_node_3_data:/data
+      - ./docker/redis/redis-cluster.conf:/usr/local/etc/redis/redis.conf:ro
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    command: >
+      redis-server /usr/local/etc/redis/redis.conf
+      --requirepass ${REDIS_PASSWORD}
+      --cluster-enabled yes
+      --cluster-config-file nodes.conf
+      --cluster-node-timeout 5000
+      --appendonly yes
+      --maxmemory 1gb
+      --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+  # Monitoring and Observability
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: swiftpay-prometheus
+    expose:
+      - "9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  grafana:
+    image: grafana/grafana:10.1.0
+    container_name: swiftpay-grafana
+    expose:
+      - "3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./docker/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  # Log Aggregation
+  fluentd:
+    build:
+      context: ./docker/fluentd
+      dockerfile: Dockerfile
+    container_name: swiftpay-fluentd
+    expose:
+      - "24224"
+    volumes:
+      - ./docker/fluentd/conf:/fluentd/etc:ro
+      - fluentd_logs:/fluentd/log
+    networks:
+      - swiftpay-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+# Networks
+networks:
+  swiftpay-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+  bitcoin-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/16
+  swiftpay-external:
+    driver: bridge
+
+# Volumes
+volumes:
+  # Application data
+  mongodb_primary_data:
+    driver: local
+  mongodb_secondary_data:
+    driver: local
+  mongodb_primary_config:
+    driver: local
+  mongodb_secondary_config:
+    driver: local
+  redis_node_1_data:
+    driver: local
+  redis_node_2_data:
+    driver: local
+  redis_node_3_data:
+    driver: local
+  
+  # Bitcoin and Lightning data
+  bitcoin_data:
+    driver: local
+  lnd_data:
+    driver: local
+  
+  # Monitoring data
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  
+  # Logs
+  nginx_logs:
+    driver: local
+  web_ui_logs:
+    driver: local
+  admin_ui_logs:
+    driver: local
+  crypto_logs:
+    driver: local
+  fluentd_logs:
+    driver: local
