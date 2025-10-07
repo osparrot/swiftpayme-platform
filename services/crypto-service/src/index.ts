@@ -11,16 +11,15 @@ import { v4 as uuidv4 } from 'uuid';
 import cron from 'node-cron';
 
 // Import routes and middleware
-import cryptoRoutes from './routes/cryptoRoutes';
+import cryptoRoutes from './routes/index';
 import { loggingMiddleware, errorLoggingMiddleware } from './middleware/logging';
 import { rateLimitMiddleware } from './middleware/rateLimit';
 import { Logger } from './utils/Logger';
 import { RedisClient } from './utils/RedisClient';
-import { BitcoinService } from './services/BitcoinService';
-import { LightningService } from './services/LightningService';
-import { WalletService } from './services/WalletService';
-import { TransactionService } from './services/TransactionService';
-import { ServiceResponse } from './types';
+import { EnhancedBitcoinService } from './services/EnhancedBitcoinService';
+import { EnhancedLightningService } from './services/EnhancedLightningService';
+import WalletService from './services/WalletService';
+import TransactionService from './services/TransactionService';
 
 // Load environment variables
 config();
@@ -28,12 +27,24 @@ config();
 // Initialize logger
 const logger = new Logger('SwiftPayCryptoService');
 
+export interface ServiceResponse {
+  success: boolean;
+  data?: any;
+  error?: {
+    code: string;
+    message: string;
+    details?: any;
+  };
+  requestId?: string;
+  timestamp: string;
+}
+
 class SwiftPayCryptoService {
   private app: Application;
   private server: any;
   private port: number;
-  private bitcoinService: BitcoinService;
-  private lightningService: LightningService;
+  private bitcoinService: EnhancedBitcoinService;
+  private lightningService: EnhancedLightningService;
   private walletService: WalletService;
   private transactionService: TransactionService;
   private isShuttingDown: boolean = false;
@@ -43,8 +54,8 @@ class SwiftPayCryptoService {
     this.port = parseInt(process.env.PORT || '3007');
     
     // Initialize services
-    this.bitcoinService = new BitcoinService();
-    this.lightningService = new LightningService();
+    this.bitcoinService = new EnhancedBitcoinService();
+    this.lightningService = new EnhancedLightningService();
     this.walletService = new WalletService();
     this.transactionService = new TransactionService();
     
@@ -356,7 +367,7 @@ class SwiftPayCryptoService {
       }
     });
 
-    // Cleanup old transactions and logs daily at 2 AM
+    // Cleanup old transactions daily at 2 AM
     cron.schedule('0 2 * * *', async () => {
       try {
         await this.transactionService.cleanupOldTransactions();
@@ -392,13 +403,6 @@ class SwiftPayCryptoService {
       // Check Lightning Network connection
       const lightningStatus = await this.checkLightningConnection();
 
-      // Check external services
-      const externalServices = {
-        userService: await this.checkExternalService(process.env.USER_SERVICE_URL),
-        currencyService: await this.checkExternalService(process.env.CURRENCY_SERVICE_URL),
-        notificationService: await this.checkExternalService(process.env.NOTIFICATION_SERVICE_URL)
-      };
-
       const healthData = {
         service: 'crypto-service',
         status: 'healthy',
@@ -428,7 +432,6 @@ class SwiftPayCryptoService {
             host: process.env.LIGHTNING_HOST || 'localhost'
           }
         },
-        externalServices,
         responseTime: Date.now() - startTime
       };
 
@@ -559,18 +562,6 @@ class SwiftPayCryptoService {
     }
   }
 
-  private async checkExternalService(serviceUrl?: string): Promise<string> {
-    if (!serviceUrl) return 'not_configured';
-    
-    try {
-      // This would make an actual HTTP request to check service health
-      // For now, return 'unknown'
-      return 'unknown';
-    } catch (error) {
-      return 'unavailable';
-    }
-  }
-
   private async checkRedisConnection(): Promise<boolean> {
     try {
       const redisClient = RedisClient.getInstance();
@@ -600,9 +591,9 @@ class SwiftPayCryptoService {
   private async checkServicesInitialized(): Promise<boolean> {
     try {
       return this.bitcoinService.isInitialized() && 
-             this.lightningService.isInitialized() &&
-             this.walletService.isInitialized() &&
-             this.transactionService.isInitialized();
+             this.lightningService.isServiceInitialized() &&
+             this.walletService.isServiceInitialized() &&
+             this.transactionService.isServiceInitialized();
     } catch (error) {
       return false;
     }
@@ -846,4 +837,3 @@ if (require.main === module) {
 }
 
 export default swiftPayCryptoService;
-
