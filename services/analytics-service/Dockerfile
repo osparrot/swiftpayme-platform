@@ -30,7 +30,7 @@ FROM node:18-alpine AS production
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S notificationservice -u 1001
+    adduser -S analyticsservice -u 1001
 
 # Set working directory
 WORKDIR /app
@@ -55,21 +55,21 @@ COPY --from=builder /app/dist ./dist
 
 # Create necessary directories
 RUN mkdir -p logs && \
-    chown -R notificationservice:nodejs /app
+    chown -R analyticsservice:nodejs /app
 
 # Switch to non-root user
-USER notificationservice
+USER analyticsservice
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3009/health || exit 1
+    CMD curl -f http://localhost:3012/health || exit 1
 
 # Expose port
-EXPOSE 3009
+EXPOSE 3012
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3009
+ENV PORT=3012
 ENV HOST=0.0.0.0
 
 # Use dumb-init to handle signals properly
@@ -81,11 +81,11 @@ CMD ["node", "dist/index.js"]
 # Metadata
 LABEL maintainer="SwiftPayMe Team <team@swiftpayme.com>"
 LABEL version="1.0.0"
-LABEL description="SwiftPayMe Notification Service - Part of the SwiftPayMe payment processing system"
-LABEL org.opencontainers.image.title="SwiftPayMe Notification Service"
-LABEL org.opencontainers.image.description="Notification Service for the SwiftPayMe payment processing system"
+LABEL description="SwiftPayMe Analytics Service - Handles business intelligence, reporting, and data analytics"
+LABEL org.opencontainers.image.title="SwiftPayMe Analytics Service"
+LABEL org.opencontainers.image.description="Handles business intelligence, reporting, and data analytics for the SwiftPayMe payment processing system"
 LABEL org.opencontainers.image.version="1.0.0"
 LABEL org.opencontainers.image.vendor="SwiftPayMe"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.source="https://github.com/osparrot/swiftpayme-platform"
-LABEL org.opencontainers.image.documentation="https://docs.swiftpayme.com/notification-service"
+LABEL org.opencontainers.image.documentation="https://docs.swiftpayme.com/analytics-service"

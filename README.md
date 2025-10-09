@@ -44,6 +44,29 @@ The SwiftPayMe platform is composed of three main components:
 
 ## 🚀 Getting Started
 
+All microservices in the SwiftPayMe platform now have standardized `tsconfig.json` and `Dockerfile` configurations, ensuring consistent build and deployment processes across the entire system. Each service can be built and run independently using Docker.
+
+### Building a Service
+
+To build a specific service, navigate to its directory and use the `docker build` command:
+
+```bash
+cd services/<service-name>
+docker build -t swiftpayme/<service-name> .
+```
+
+### Running a Service
+
+To run a service, use the `docker run` command, making sure to provide the necessary environment variables:
+
+```bash
+docker run -d -p <port>:<port> --env-file .env.production swiftpayme/<service-name>
+```
+
+### Complete System Deployment
+
+For a complete system deployment, please refer to the `docker-compose.production.yml` file and the `DEPLOYMENT.md` guide.
+
 ### Prerequisites
 
 -   Docker and Docker Compose

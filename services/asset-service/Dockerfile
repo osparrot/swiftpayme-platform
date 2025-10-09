@@ -1,80 +1,76 @@
 # Multi-stage build for production optimization
-FROM node:18-alpine AS base
+FROM node:18-alpine AS builder
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create app directory
+# Set working directory
 WORKDIR /app
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S swiftpay -u 1001
+# Install build dependencies
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    git \
+    curl
 
 # Copy package files
 COPY package*.json ./
+COPY tsconfig.json ./
 
-# Development stage
-FROM base AS development
-ENV NODE_ENV=development
-RUN npm ci --include=dev
-COPY . .
-RUN chown -R swiftpay:nodejs /app
-USER swiftpay
-EXPOSE 3000
-CMD ["dumb-init", "npm", "run", "dev"]
-
-# Build stage
-FROM base AS build
-ENV NODE_ENV=production
-
-# Install all dependencies (including dev dependencies for build)
-RUN npm ci --include=dev
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy source code
-COPY . .
+COPY src/ ./src/
 
-# Build the application
+# Build TypeScript
 RUN npm run build
-
-# Remove dev dependencies
-RUN npm prune --production && npm cache clean --force
 
 # Production stage
 FROM node:18-alpine AS production
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init
-
-# Create app directory
-WORKDIR /app
-
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S swiftpay -u 1001
+    adduser -S assetservice -u 1001
 
-# Copy built application from build stage
-COPY --from=build --chown=swiftpay:nodejs /app/dist ./dist
-COPY --from=build --chown=swiftpay:nodejs /app/node_modules ./node_modules
-COPY --from=build --chown=swiftpay:nodejs /app/package*.json ./
+# Set working directory
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    ca-certificates \
+    tzdata
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf /tmp/*
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
 
 # Create necessary directories
-RUN mkdir -p logs uploads && \
-    chown -R swiftpay:nodejs logs uploads
+RUN mkdir -p logs && \
+    chown -R assetservice:nodejs /app
+
+# Switch to non-root user
+USER assetservice
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3002/health || exit 1
+
+# Expose port
+EXPOSE 3002
 
 # Set environment variables
 ENV NODE_ENV=production
-ENV PORT=3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) })"
-
-# Switch to non-root user
-USER swiftpay
-
-# Expose port
-EXPOSE 3000
+ENV PORT=3002
+ENV HOST=0.0.0.0
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
@@ -82,9 +78,14 @@ ENTRYPOINT ["dumb-init", "--"]
 # Start the application
 CMD ["node", "dist/index.js"]
 
-# Labels for better container management
-LABEL maintainer="Swiftpay Development Team"
-LABEL service="user-service"
+# Metadata
+LABEL maintainer="SwiftPayMe Team <team@swiftpayme.com>"
 LABEL version="1.0.0"
-LABEL description="User management microservice for Swiftpay payment processing system"
-
+LABEL description="SwiftPayMe Asset Service - Part of the SwiftPayMe payment processing system"
+LABEL org.opencontainers.image.title="SwiftPayMe Asset Service"
+LABEL org.opencontainers.image.description="Asset Service for the SwiftPayMe payment processing system"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.vendor="SwiftPayMe"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/osparrot/swiftpayme-platform"
+LABEL org.opencontainers.image.documentation="https://docs.swiftpayme.com/asset-service"

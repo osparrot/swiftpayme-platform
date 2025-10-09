@@ -1,18 +1,16 @@
-# Use Node.js 18 Alpine as base image for smaller size and better security
-FROM node:18-alpine AS base
+# Multi-stage build for production optimization
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install build dependencies
 RUN apk add --no-cache \
-    dumb-init \
-    curl \
-    && rm -rf /var/cache/apk/*
-
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S swiftpay -u 1001
+    python3 \
+    make \
+    g++ \
+    git \
+    curl
 
 # Copy package files
 COPY package*.json ./
@@ -21,55 +19,58 @@ COPY tsconfig.json ./
 # Install dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Development stage
-FROM base AS development
-RUN npm ci
-COPY . .
-EXPOSE 3005
-USER swiftpay
-CMD ["npm", "run", "dev"]
+# Copy source code
+COPY src/ ./src/
 
-# Build stage
-FROM base AS build
-RUN npm ci
-COPY . .
-RUN npm run build && \
-    npm prune --production
+# Build TypeScript
+RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS production
 
-# Install dumb-init for proper signal handling
-RUN apk add --no-cache dumb-init curl
-
-# Create app directory
-WORKDIR /app
-
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S swiftpay -u 1001
+    adduser -S cryptoservice -u 1001
 
-# Copy built application
-COPY --from=build --chown=swiftpay:nodejs /app/dist ./dist
-COPY --from=build --chown=swiftpay:nodejs /app/node_modules ./node_modules
-COPY --from=build --chown=swiftpay:nodejs /app/package.json ./package.json
+# Set working directory
+WORKDIR /app
 
-# Create logs directory
-RUN mkdir -p logs && chown swiftpay:nodejs logs
+# Install runtime dependencies
+RUN apk add --no-cache \
+    dumb-init \
+    curl \
+    ca-certificates \
+    tzdata
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3005
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production && \
+    npm cache clean --force && \
+    rm -rf /tmp/*
+
+# Copy built application from builder stage
+COPY --from=builder /app/dist ./dist
+
+# Create necessary directories
+RUN mkdir -p logs && \
+    chown -R cryptoservice:nodejs /app
+
+# Switch to non-root user
+USER cryptoservice
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3005/health || exit 1
 
 # Expose port
 EXPOSE 3005
 
-# Switch to non-root user
-USER swiftpay
+# Set environment variables
+ENV NODE_ENV=production
+ENV PORT=3005
+ENV HOST=0.0.0.0
 
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
@@ -77,11 +78,14 @@ ENTRYPOINT ["dumb-init", "--"]
 # Start the application
 CMD ["node", "dist/index.js"]
 
-# Labels for better container management
-LABEL maintainer="Swiftpay Team <dev@swiftpay.com>"
+# Metadata
+LABEL maintainer="SwiftPayMe Team <team@swiftpayme.com>"
 LABEL version="1.0.0"
-LABEL description="Swiftpay Currency Conversion Service"
-LABEL org.opencontainers.image.source="https://github.com/swiftpay/currency-conversion-service"
-LABEL org.opencontainers.image.documentation="https://docs.swiftpay.com/services/currency-conversion"
+LABEL description="SwiftPayMe Crypto Service - Handles Bitcoin Core and Lightning Network integration"
+LABEL org.opencontainers.image.title="SwiftPayMe Crypto Service"
+LABEL org.opencontainers.image.description="Handles Bitcoin Core and Lightning Network integration for the SwiftPayMe payment processing system"
+LABEL org.opencontainers.image.version="1.0.0"
+LABEL org.opencontainers.image.vendor="SwiftPayMe"
 LABEL org.opencontainers.image.licenses="MIT"
-
+LABEL org.opencontainers.image.source="https://github.com/osparrot/swiftpayme-platform"
+LABEL org.opencontainers.image.documentation="https://docs.swiftpayme.com/crypto-service"
